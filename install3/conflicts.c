@@ -277,6 +277,34 @@ void i3_report_db_conflicts(struct i3ctx *ictx)
     n_array_cfree(&ictx->db_conflicts);
 }
 
+/* Conflicts between the packages to install are reported once all of them
+   are processed: the one a package conflicts with may get marked after it */
+void i3_report_set_conflicts(struct i3ctx *ictx)
+{
+    const tn_array *pkgs = iset_packages(ictx->inset);
+    int i, j;
+
+    if (!ictx->ts->getop(ictx->ts, POLDEK_OP_CONFLICTS))
+        return;
+
+    for (i = 0; i < n_array_size(pkgs); i++) {
+        struct pkg *pkg = n_array_nth(pkgs, i);
+        tn_array *cnflpkgs = i3_get_package_conflicted_pkgs(0, ictx, pkg);
+
+        if (cnflpkgs == NULL)
+            continue;
+
+        for (j = 0; j < n_array_size(cnflpkgs); j++) {
+            struct reqpkg *cpkg = n_array_nth(cnflpkgs, j);
+
+            if (i3_is_marked(ictx, cpkg->pkg))
+                i3_error(ictx, pkg, I3ERR_CONFLICT, _("%s conflicts with %s"),
+                         pkg_id(pkg), pkg_id(cpkg->pkg));
+        }
+        n_array_free(cnflpkgs);
+    }
+}
+
 /* check if cnfl conflicts with db */
 static
 int find_db_conflicts_cnfl_with_db(int indent, struct i3ctx *ictx,
@@ -423,22 +451,6 @@ int i3_process_pkg_conflicts(int indent, struct i3ctx *ictx, struct i3pkg *i3pkg
         return 1;
 
     tracef(indent, "%s", pkg_id(pkg));
-
-    tn_array *cnflpkgs = i3_get_package_conflicted_pkgs(indent, ictx, pkg);
-    /* conflicts in install set */
-    if (cnflpkgs != NULL) {
-        for (i = 0; i < n_array_size(cnflpkgs); i++) {
-            struct reqpkg *cpkg = n_array_nth(cnflpkgs, i);
-            n_assert((cpkg->flags & REQPKG_CONFLICT));
-
-            if (i3_is_marked(ictx, cpkg->pkg)) {
-                i3_error(ictx, pkg, I3ERR_CONFLICT, _("%s conflicts with %s"),
-                         pkg_id(pkg), pkg_id(cpkg->pkg));
-                ncnfl++;
-            }
-        }
-        n_array_cfree(&cnflpkgs);
-    }
 
     /*
        XXX selfcaps are added on index, but here they may be not indexed at all here.

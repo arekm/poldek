@@ -219,6 +219,7 @@ tn_array *i3_boolreq_unmet(int indent, struct i3ctx *ictx, struct pkg *pkg,
                            const struct capreq *req);
 
 /* conflicts.c */
+void i3_report_set_conflicts(struct i3ctx *ictx);
 void i3_report_db_conflicts(struct i3ctx *ictx);
 
 int i3_resolve_conflict(int indent, struct i3ctx *ictx,

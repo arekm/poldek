@@ -183,6 +183,31 @@ testConflictUseAlternative() {
   try_install_a "a,c"
 }
 
+# a conflicts with z, which b brings in after a is checked
+testConflictWithPackageMarkedLater() {
+    build a -c z
+    build z
+    build b -r a -r z
+
+    try_install_package_should_fail "dir" "-uv --test" b
+    LC_ALL=C $POLDEK_INSTALL -uv --test b 2>&1 | grep -q "error: a-1-1 conflicts with z-1-1"
+    assertEquals "the conflict should be reported" "$?" "0"
+    try_install_package "dir" "-uv --test -Oconflicts=no" b "a,b,z"
+}
+
+# the same for an Obsoletes, also with obsoletes = no: rpm applies it
+# whatever the option says
+testObsoletesWithPackageMarkedLater() {
+    build a -o z
+    build z
+    build b -r a -r z
+
+    try_install_package_should_fail "dir" "-uv --test" b
+    LC_ALL=C $POLDEK_INSTALL -uv --test b 2>&1 | grep -q "error: a-1-1 conflicts with z-1-1"
+    assertEquals "the conflict should be reported" "$?" "0"
+    try_install_package_should_fail "dir" "-uv --test -Oobsoletes=no" b
+}
+
 # b conflicts with installed c
 testConflictUpgrade() {
     build_installed a -r "foo" -r "bar"
