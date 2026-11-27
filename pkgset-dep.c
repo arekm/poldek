@@ -522,6 +522,20 @@ tn_array *pkgset_get_conflicted_packages(int indent, struct pkgset *ps, const st
     return re;
 }
 
+/* Does a Conflicts or an Obsoletes of pkg name the other package? What
+   pkgset_get_conflicted_packages() says of one pair, with no list made */
+int pkg_conflicts_with(const struct pkg *pkg, const struct pkg *with)
+{
+    for (int i = 0; pkg->cnfls && i < n_array_size(pkg->cnfls); i++) {
+        struct capreq *cnfl = n_array_nth(pkg->cnfls, i);
+
+        if (pkg_match_req(with, cnfl, 1) && cnfl_names_pkg(pkg, cnfl, with))
+            return 1;
+    }
+
+    return 0;
+}
+
 
 /* Does a capability of pkg satisfy one of spkg's requirements of capname? */
 static bool satisfies_req_of(const struct pkg *pkg, const struct pkg *spkg,

@@ -19,6 +19,24 @@
 
 #include "ictx.h"
 
+/* How many of the packages to install is pkg in conflict with, whichever
+   of the two says so? An Obsoletes counts whatever obsoletes says: rpm
+   applies it between the packages of one transaction */
+int i3_conflicts_with_marked(struct i3ctx *ictx, const struct pkg *pkg)
+{
+    const tn_array *pkgs = iset_packages(ictx->inset);
+    int i, n = 0;
+
+    for (i = 0; i < n_array_size(pkgs); i++) {
+        const struct pkg *marked = n_array_nth(pkgs, i);
+
+        if (pkg_conflicts_with(pkg, marked) || pkg_conflicts_with(marked, pkg))
+            n++;
+    }
+
+    return n;
+}
+
 static
 int find_direct_replacement(struct i3ctx *ictx, struct pkg *pkg,
                             const struct capreq *cnfl, struct pkg **rpkg)

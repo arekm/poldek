@@ -208,6 +208,38 @@ testObsoletesWithPackageMarkedLater() {
     try_install_package_should_fail "dir" "-uv --test -Oobsoletes=no" b
 }
 
+# q, marked by then, conflicts with x1: x2 provides zfoo as well
+testProviderInConflictWithMarkedPackage() {
+    build q -c x1
+    build x1 -p zfoo
+    build x2 -p zfoo
+    build b -r q -r zfoo
+
+    try_install_package "dir" "-uv --test" b "b,q,x2"
+}
+
+# ...while an Obsoletes names a package, not what it provides: x1 stays
+testProviderNamedByObsoletesOfItsProvides() {
+    build q -o xcap
+    build x1 -p zfoo -p xcap
+    build x2 -p zfoo
+    build b -r q -r zfoo
+
+    try_install_package "dir" "-uv --test" b "b,q,x1"
+}
+
+# ...and an Obsoletes on a marked package counts, also with obsoletes = no:
+# rpm applies it whatever the option says
+testProviderObsoletesMarkedPackage() {
+    build a
+    build b -p foo -o a
+    build c -p foo
+    build x -r a -r foo
+
+    try_install_package "dir" "-uv --test" x "a,c,x"
+    try_install_package "dir" "-uv --test -Oobsoletes=no" x "a,c,x"
+}
+
 # b conflicts with installed c
 testConflictUpgrade() {
     build_installed a -r "foo" -r "bar"

@@ -316,21 +316,9 @@ static void score_candidate(int indent, struct i3ctx *ictx,
 
     trace(indent, "- %s (upgrade=%d)", pkg_id(pkg), sc->upgrade);
 
-    if (pkg->cnfls != NULL) {
-        tn_array *cnflpkgs = i3_get_package_conflicted_pkgs(indent, ictx, pkg);
-        if (cnflpkgs) {
-            for (int j = 0; j < n_array_size(cnflpkgs); j++) {
-                struct reqpkg *cpkg = n_array_nth(cnflpkgs, j);
-                if (i3_is_marked(ictx, cpkg->pkg)) {
-                    sc->conflicts++;
-                }
-            }
-            n_array_cfree(&cnflpkgs);
-        }
-
-        if (sc->conflicts > 0)
-            trace(indent, "- %s (conflicts=%d)", pkg_id(pkg), sc->conflicts);
-    }
+    sc->conflicts = i3_conflicts_with_marked(ictx, pkg);
+    if (sc->conflicts > 0)
+        trace(indent, "- %s (conflicts=%d)", pkg_id(pkg), sc->conflicts);
 
     if (i3_is_other_version_marked(ictx, pkg, NULL)) {
         trace(indent + 4, "%s: other version is already marked, skipped", pkg_id(pkg));

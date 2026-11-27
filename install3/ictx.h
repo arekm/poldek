@@ -232,6 +232,7 @@ int i3_process_pkg_conflicts(int indent, struct i3ctx *ictx,
 
 tn_array *i3_get_package_conflicted_pkgs(int indent, struct i3ctx *ictx,
                                          const struct pkg *pkg);
+int i3_conflicts_with_marked(struct i3ctx *ictx, const struct pkg *pkg);
 
 /* obsoletes.c */
 struct orphan {
