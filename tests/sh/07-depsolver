@@ -344,6 +344,28 @@ testConflictWithInstalledReplacementProviderSelf() {
     try_install a "a,w" "z"
 }
 
+# z-3-1 conflicts with a file of a: z-2-1 replaces z
+testConflictWithInstalledReplacementConflictsWithFile() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build z 2-1
+    build z 3-1 -c /opt/feature
+    build a 1-1 -f /opt/feature
+
+    try_install a "a,z-2-1" "z"
+}
+
+# z conflicts with a file of a, b needs both
+testConflictWithFileOfPackageInSet() {
+    build a -f /opt/feature
+    build z -c /opt/feature
+    build b -r a -r z
+
+    try_install_package_should_fail "dir" "-uv --test" b
+    LC_ALL=C $POLDEK_INSTALL -uv --test b 2>&1 | grep -q "error: z-1-1 conflicts with a-1-1"
+    assertEquals "the conflict should be reported" "$?" "0"
+}
+
 # b conflicts with installed c
 testConflictUpgrade() {
     build_installed a -r "foo" -r "bar"

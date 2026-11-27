@@ -318,6 +318,20 @@ void i3_report_db_conflicts(struct i3ctx *ictx)
     n_array_cfree(&ictx->db_conflicts);
 }
 
+/* Does an entry of pkg name a file path? The index of capabilities, which
+   i3_get_package_conflicted_pkgs() reads, does not hold its owner */
+static int names_path(const struct pkg *pkg)
+{
+    int i;
+
+    for (i = 0; pkg->cnfls && i < n_array_size(pkg->cnfls); i++) {
+        if (capreq_is_file((struct capreq *)n_array_nth(pkg->cnfls, i)))
+            return 1;
+    }
+
+    return 0;
+}
+
 /* Conflicts between the packages to install are reported once all of them
    are processed: the one a package conflicts with may get marked after it */
 void i3_report_set_conflicts(struct i3ctx *ictx)
@@ -330,8 +344,20 @@ void i3_report_set_conflicts(struct i3ctx *ictx)
 
     for (i = 0; i < n_array_size(pkgs); i++) {
         struct pkg *pkg = n_array_nth(pkgs, i);
-        tn_array *cnflpkgs = i3_get_package_conflicted_pkgs(0, ictx, pkg);
+        tn_array *cnflpkgs;
 
+        if (names_path(pkg)) {  /* each of them is asked instead */
+            for (j = 0; j < n_array_size(pkgs); j++) {
+                struct pkg *marked = n_array_nth(pkgs, j);
+
+                if (pkg_conflicts_with(pkg, marked))
+                    i3_error(ictx, pkg, I3ERR_CONFLICT, _("%s conflicts with %s"),
+                             pkg_id(pkg), pkg_id(marked));
+            }
+            continue;
+        }
+
+        cnflpkgs = i3_get_package_conflicted_pkgs(0, ictx, pkg);
         if (cnflpkgs == NULL)
             continue;
 
