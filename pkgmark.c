@@ -441,7 +441,7 @@ int pkgmark_verify_package_conflicts(struct pkgmark_set *pms)
 }
 
 /* pkg provides req: by name or Provides, or a path as a file of its whole list */
-static int marked_provides(const struct pkg *pkg, const struct capreq *req)
+int pkg_provides_or_owns(const struct pkg *pkg, const struct capreq *req)
 {
     struct pkgflist_it *it;
     const char *path;
@@ -476,7 +476,7 @@ static int marked_req_cost(const struct capreq *req, tn_array **providers,
     for (int i = 0; i < n_array_size(mc->pkgs); i++) {
         struct pkg *pkg = n_array_nth(mc->pkgs, i);
 
-        if (!marked_provides(pkg, req))
+        if (!pkg_provides_or_owns(pkg, req))
             continue;
 
         if (providers == NULL)

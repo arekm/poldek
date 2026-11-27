@@ -102,6 +102,7 @@ struct pkg_unreq {
 
 tn_array *pkgset_get_conflicted_packages(int indent, struct pkgset *ps, const struct pkg *pkg);
 int pkg_conflicts_with(const struct pkg *pkg, const struct pkg *with);
+int pkg_provides_or_owns(const struct pkg *pkg, const struct capreq *req); /* pkgmark.c */
 tn_array *pkgset_get_required_packages_x(int indent, struct pkgset *ps, const struct pkg *pkg, tn_hash **unreqh);
 EXPORT tn_array *pkgset_get_required_packages(int indent, struct pkgset *ps, const struct pkg *pkg);
 EXPORT tn_array *pkgset_get_requiredby_packages(int indent, struct pkgset *ps, const struct pkg *pkg);
