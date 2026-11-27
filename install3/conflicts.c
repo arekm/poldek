@@ -39,7 +39,7 @@ int i3_conflicts_with_marked(struct i3ctx *ictx, const struct pkg *pkg)
 
 static
 int find_direct_replacement(struct i3ctx *ictx, struct pkg *pkg,
-                            const struct capreq *cnfl, struct pkg **rpkg)
+                            struct pkg **rpkg)
 {
     tn_array *pkgs;
     struct pkgset *ps;
@@ -55,8 +55,9 @@ int find_direct_replacement(struct i3ctx *ictx, struct pkg *pkg,
             if (!pkg_is_kind_of(p, pkg))
                 continue;
 
-            /* still conflicted */
-            if (p->cnfls && n_array_bsearch(p->cnfls, cnfl))
+            /* in conflict with a package to install: the one of this
+               conflict, or another */
+            if (i3_conflicts_with_marked(ictx, p))
                 continue;
 
             if (pkg_cmp_evr(p, pkg) > 0) {
@@ -78,7 +79,7 @@ int find_direct_replacement(struct i3ctx *ictx, struct pkg *pkg,
 
 static
 int find_indirect_replacement(struct i3ctx *ictx, struct pkg *pkg,
-                              const struct capreq *cnfl, struct pkg **rpkg)
+                              struct pkg **rpkg)
 {
     tn_array *pkgs;
     struct pkgset *ps;
@@ -94,8 +95,9 @@ int find_indirect_replacement(struct i3ctx *ictx, struct pkg *pkg,
             if (!pkg_is_kind_of(p, pkg))
                 continue;
 
-            /* still conflicted */
-            if (p->cnfls && n_array_bsearch(p->cnfls, cnfl))
+            /* in conflict with a package to install: the one of this
+               conflict, or another */
+            if (i3_conflicts_with_marked(ictx, p))
                 continue;
 
             if (pkg_caps_obsoletes_pkg_caps(p, pkg) &&
@@ -149,7 +151,7 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
     indent++;
 
     /* if newer version exists then just upgrade (UpgradeMultipleByConflict case) */
-    found = find_direct_replacement(ictx, dbpkg, cnfl, &tomark);
+    found = find_direct_replacement(ictx, dbpkg, &tomark);
     if (found) {
         by_replacement = 1;
 
@@ -173,7 +175,7 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
 
     if (!found) {
         n_assert(tomark == NULL);
-        found = find_indirect_replacement(ictx, dbpkg, cnfl, &tomark);
+        found = find_indirect_replacement(ictx, dbpkg, &tomark);
         by_replacement = 1;
 
     } else {

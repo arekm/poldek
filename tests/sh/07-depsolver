@@ -240,6 +240,88 @@ testProviderObsoletesMarkedPackage() {
     try_install_package "dir" "-uv --test -Oobsoletes=no" x "a,c,x"
 }
 
+# a conflicts with zc < 2, which z-3-1 provides as installed z-1-1 does;
+# z-2-1 does not, so that one replaces z
+testConflictWithInstalledReplacementStillConflicts() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -p "'zc = 1'"
+    build z 2-1
+    build z 3-1 -p "'zc = 1'"
+    build a 1-1 -c "'zc < 2'"
+
+    try_install a "a,z-2-1" "z"
+}
+
+# the same for a Conflicts of installed z-1-1 on a, which z-3-1 has too
+testConflictWithInstalledReplacementKeepsConflict() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build z 2-1
+    build z 3-1 -c "'a < 5'"
+    build a 1-1
+
+    try_install a "a,z-2-1" "z"
+}
+
+# z-2-1 has no such Conflicts but obsoletes a: nothing replaces z, also
+# with obsoletes = no
+testConflictWithInstalledReplacementStillObsoletes() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build z 2-1 -o a
+    build a 1-1
+
+    try_install_package_should_fail "dir" "-uv --test" a
+    LC_ALL=C $POLDEK_INSTALL -uv --test a 2>&1 | grep -q "conflicts with installed z-1-1"
+    assertEquals "installed z-1-1 should be named" "$?" "0"
+    try_install_package_should_fail "dir" "-uv --test -Oobsoletes=no" a
+}
+
+# ...and for one z-3-1 words another way
+testConflictWithInstalledReplacementOtherEntry() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build z 2-1
+    build z 3-1 -c "'a < 6'"
+    build a 1-1
+
+    try_install a "a,z-2-1" "z"
+}
+
+# z-2-1 has a Conflicts on a as well, but a-1-1 is not what it names
+testConflictWithInstalledReplacementEntryNotMatching() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build z 2-1 -c "'a > 5'"
+    build a 1-1
+
+    try_install a "a,z-2-1" "z"
+}
+
+# z-3-1 conflicts with q, which a brings in: z-2-1 replaces z
+testConflictWithInstalledReplacementConflictsWithMarked() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -c "'a < 5'"
+    build q 1-1
+    build z 2-1
+    build z 3-1 -c q
+    build a 1-1 -r q
+
+    try_install a "a,q,z-2-1" "z"
+}
+
+# z-2-1 provides zz, which a conflicts with as well: w, another provider
+# of zc = 2, replaces z
+testConflictWithInstalledReplacementOtherProvider() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -p "'zc = 1'"
+    build z 2-1 -p "'zc = 2'" -p zz
+    build w 1-1 -p "'zc = 2'" -o z
+    build a 1-1 -c "'zc < 2'" -c zz
+
+    try_install a "a,w" "z"
+}
+
 # b conflicts with installed c
 testConflictUpgrade() {
     build_installed a -r "foo" -r "bar"
