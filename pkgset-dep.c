@@ -426,6 +426,28 @@ static int cnfl_matches_pkg(struct capreq *cnfl, const struct pkg *spkg)
     return 1;
 }
 
+/* Does the entry of pkg name spkg, a package with a capability of its name? */
+static int cnfl_names_pkg(const struct pkg *pkg, struct capreq *cnfl,
+                          const struct pkg *spkg)
+{
+    /* bastard conflicts are direct */
+    if (capreq_is_bastard(cnfl) && pkg_cmp_name(pkg, spkg) != 0)
+        return 0;
+
+    if (!cnfl_matches_pkg(cnfl, spkg))
+        return 0;
+
+    /* do not conflict with myself */
+    if (spkg == pkg)
+        return 0;
+
+    /* multilib */
+    if (pkg_cmp_name_evr(spkg, pkg) == 0 && pkg_cmp_arch(spkg, pkg) != 0)
+        return 0;
+
+    return 1;
+}
+
 static
 tn_array *get_conflicted(int indent, struct pkgset *ps,
                          const struct pkg *pkg, struct capreq *cnfl, tn_array *re)
@@ -443,19 +465,7 @@ tn_array *get_conflicted(int indent, struct pkgset *ps,
         for (unsigned i = 0; i < ent->items; i++) {
             struct pkg *spkg = suspkgs[i];
             msg_i(4, indent, "sus %s->%s", pkg_id(pkg), pkg_id(spkg));
-            /* bastard conflicts are direct */
-            if (capreq_is_bastard(cnfl) && pkg_cmp_name(pkg, spkg) != 0)
-                continue;
-
-            if (!cnfl_matches_pkg(cnfl, spkg))
-                continue;
-
-            /* do not conflict with myself */
-            if (spkg == pkg)
-                continue;
-
-            /* multilib */
-            if (pkg_cmp_name_evr(spkg, pkg) == 0 && pkg_cmp_arch(spkg, pkg) != 0)
+            if (!cnfl_names_pkg(pkg, cnfl, spkg))
                 continue;
 
             msg_i(4, indent, "_%s, ", pkg_id(spkg));
