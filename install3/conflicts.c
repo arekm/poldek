@@ -77,6 +77,38 @@ int find_direct_replacement(struct i3ctx *ictx, struct pkg *pkg,
     return (*rpkg != NULL);
 }
 
+/* The depsolver's pick among the providers of req that replace installed
+   dbpkg, as i3_find_req() makes it; another one leaves dbpkg in place */
+static int find_replacing_provider(int indent, struct i3ctx *ictx,
+                                   const struct pkg *pkg, const struct pkg *dbpkg,
+                                   const struct capreq *req, struct pkg **best_pkg,
+                                   tn_array *candidates)
+{
+    tn_array *pkgs = NULL;
+    int i, found;
+
+    *best_pkg = NULL;
+    /* no pkg here: given pkg, the lookup stops with no list when pkg
+       itself provides req, though another provider may replace dbpkg */
+    if (!pkgset_find_match_packages(ictx->ps, NULL, req, &pkgs, 1) || pkgs == NULL)
+        return 0;               /* none, or rpmlib() and other caps of no package */
+
+    for (i = n_array_size(pkgs) - 1; i >= 0; i--) {
+        if (!pkg_obsoletes_pkg(n_array_nth(pkgs, i), dbpkg))
+            n_array_remove_nth(pkgs, i);
+    }
+
+    found = i3_pick_pkg(indent, ictx, pkg, pkgs, best_pkg);
+
+    if (candidates && n_array_size(pkgs) > 1) {
+        while (n_array_size(pkgs))
+            n_array_push(candidates, n_array_shift(pkgs));
+    }
+
+    n_array_free(pkgs);
+    return found;
+}
+
 static
 int find_indirect_replacement(struct i3ctx *ictx, struct pkg *pkg,
                               struct pkg **rpkg)
@@ -125,8 +157,9 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
 {
     struct capreq *req = NULL;
     struct pkg *tomark = NULL;
+    struct i3pkg *i3tomark;
     tn_array   *candidates = NULL;
-    int found = 0, by_replacement = 0;
+    int found = 0;
 
     i3_return_zero_if_stoppped(ictx);
 
@@ -152,18 +185,15 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
 
     /* if newer version exists then just upgrade (UpgradeMultipleByConflict case) */
     found = find_direct_replacement(ictx, dbpkg, &tomark);
-    if (found) {
-        by_replacement = 1;
-
-    } else {
-
+    if (!found) {
         if (i3_is_user_choosable_equiv(ictx->ts))
             candidates = pkgs_array_new(8);
 
         n_assert(tomark == NULL);
-        found = i3_find_req(indent, ictx, pkg, req, &tomark, candidates);
+        found = find_replacing_provider(indent, ictx, pkg, dbpkg, req, &tomark,
+                                        candidates);
 
-        /* messy a bit, i3_find_req choose tomark among candidates, do pkg_link()
+        /* messy a bit, the pick chooses tomark among candidates, do pkg_link()
            here to be consistent with find_direct_replacement */
         if (tomark)
             tomark = pkg_link(tomark);
@@ -176,7 +206,6 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
     if (!found) {
         n_assert(tomark == NULL);
         found = find_indirect_replacement(ictx, dbpkg, &tomark);
-        by_replacement = 1;
 
     } else {
         struct pkg *real_tomark = tomark;
@@ -204,20 +233,12 @@ static int resolve_conflict(int indent, struct i3ctx *ictx,
     if (tomark == NULL)   /* already in inset, or q or n */
         goto l_end;
 
-    found = 0;
-    if (by_replacement || pkg_obsoletes_pkg(tomark, dbpkg)) {
-        struct i3pkg *i3tomark;
-
-        tracef(indent, "%s&%s cnfl %s => install %s\n", pkg_id(pkg), pkg_id(dbpkg),
-               capreq_stra(cnfl), pkg_id(tomark));
-        found = 1;
-        i3tomark = i3pkg_new(tomark, 0, pkg, req, I3PKGBY_REQ);
-        i3_process_package(indent, ictx, i3tomark);
-        i3pkg_free(i3tomark);
-    } else {
-        tracef(indent, "%s&%s cnfl %s => not found\n", pkg_id(pkg), pkg_id(dbpkg),
-               capreq_stra(cnfl));
-    }
+    /* each of the three searches above gives a package that replaces dbpkg */
+    tracef(indent, "%s&%s cnfl %s => install %s\n", pkg_id(pkg), pkg_id(dbpkg),
+           capreq_stra(cnfl), pkg_id(tomark));
+    i3tomark = i3pkg_new(tomark, 0, pkg, req, I3PKGBY_REQ);
+    i3_process_package(indent, ictx, i3tomark);
+    i3pkg_free(i3tomark);
 
 l_end:
     if (tomark)

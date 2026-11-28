@@ -322,6 +322,28 @@ testConflictWithInstalledReplacementOtherProvider() {
     try_install a "a,w" "z"
 }
 
+# v and w provide zc = 2, which a does not conflict with; only w replaces
+# installed z-1-1
+testConflictWithInstalledReplacementProviderReplaces() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -p "'zc = 1'"
+    build v 1-1 -p "'zc = 2'"
+    build w 1-1 -p "'zc = 2'" -o z
+    build a 1-1 -c "'zc < 2'"
+
+    try_install a "a,w" "z"
+}
+
+# ...also when a provides zc = 2 itself
+testConflictWithInstalledReplacementProviderSelf() {
+    msgn "Preparing repositories..."
+    build_installed z 1-1 -p "'zc = 1'"
+    build w 1-1 -p "'zc = 2'" -o z
+    build a 1-1 -c "'zc < 2'" -p "'zc = 2'"
+
+    try_install a "a,w" "z"
+}
+
 # b conflicts with installed c
 testConflictUpgrade() {
     build_installed a -r "foo" -r "bar"
